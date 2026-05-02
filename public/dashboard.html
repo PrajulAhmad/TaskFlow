@@ -31,6 +31,13 @@
       <button class="nav-btn" id="nav-team" onclick="showSection('team')">
         <span class="nav-icon">👥</span> Team
       </button>
+      <!-- Admin-only tabs -->
+      <button class="nav-btn admin-only hidden" id="nav-users" onclick="showSection('users')">
+        <span class="nav-icon">🛡️</span> User Management
+      </button>
+      <button class="nav-btn admin-only hidden" id="nav-analytics" onclick="showSection('analytics')">
+        <span class="nav-icon">📊</span> Analytics
+      </button>
       <button class="nav-btn" id="nav-activity" onclick="showSection('activity')">
         <span class="nav-icon">⚡</span> Activity Logs
       </button>
@@ -53,13 +60,16 @@
 
     <!-- ── OVERVIEW SECTION ── -->
     <section class="section active" id="section-overview">
-      <h1 class="section-title">Overview</h1>
+      <div class="section-header">
+        <h1 class="section-title" id="overview-title">Overview</h1>
+        <span class="role-mode-badge" id="role-mode-badge"></span>
+      </div>
       <div class="stats-grid" id="stats-grid">
         <div class="stat-card" id="stat-total">
           <span class="stat-icon">📋</span>
           <div class="stat-info">
             <span class="stat-value" id="stat-total-val">—</span>
-            <span class="stat-label">Total Tasks</span>
+            <span class="stat-label" id="stat-total-label">Total Tasks</span>
           </div>
         </div>
         <div class="stat-card stat-done" id="stat-done">
@@ -85,9 +95,29 @@
         </div>
       </div>
 
-      <h2 class="subsection-title">Recent Tasks</h2>
-      <div id="recent-tasks-list" class="task-list-simple">
-        <p class="empty-state">Loading…</p>
+      <!-- Admin: recent tasks across all projects -->
+      <div id="admin-overview-panel">
+        <h2 class="subsection-title">Recent Tasks (All Projects)</h2>
+        <div id="recent-tasks-list" class="task-list-simple">
+          <p class="empty-state">Loading…</p>
+        </div>
+      </div>
+
+      <!-- Member: My pending tasks + upcoming deadlines -->
+      <div id="member-overview-panel" class="hidden">
+        <h2 class="subsection-title">📌 My Pending Tasks</h2>
+        <div id="my-pending-list" class="task-list-simple">
+          <p class="empty-state">Loading…</p>
+        </div>
+        <h2 class="subsection-title">⏰ Upcoming Deadlines</h2>
+        <div id="my-deadlines-list" class="task-list-simple">
+          <p class="empty-state">Loading…</p>
+        </div>
+        <h2 class="subsection-title">📈 My Productivity This Week</h2>
+        <div class="productivity-bar-wrapper">
+          <div class="productivity-bar" id="productivity-bar"></div>
+        </div>
+        <p class="productivity-label" id="productivity-label">—</p>
       </div>
     </section>
 
@@ -174,6 +204,24 @@
       <h1 class="section-title">Global Activity</h1>
       <div id="activity-list" class="activity-list">
         <p class="empty-state">Loading activities...</p>
+      </div>
+    </section>
+
+    <!-- ── USER MANAGEMENT SECTION (Admin Only) ── -->
+    <section class="section" id="section-users">
+      <h1 class="section-title">User Management</h1>
+      <p style="color:var(--text-muted);margin-bottom:20px;font-size:0.9rem">View all registered users, their workload, and change their global role.</p>
+      <div id="users-table-wrapper">
+        <p class="empty-state">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ── ANALYTICS SECTION (Admin Only) ── -->
+    <section class="section" id="section-analytics">
+      <h1 class="section-title">Team Analytics</h1>
+      <p style="color:var(--text-muted);margin-bottom:20px;font-size:0.9rem">Workload distribution across your team.</p>
+      <div id="analytics-chart-wrapper" class="analytics-grid">
+        <p class="empty-state">Loading…</p>
       </div>
     </section>
 

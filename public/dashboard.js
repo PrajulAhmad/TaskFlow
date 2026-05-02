@@ -13,11 +13,39 @@ document.getElementById('sidebar-role').textContent     = user.role;
 document.getElementById('user-avatar').textContent      = user.name[0].toUpperCase();
 document.getElementById('my-user-id').textContent       = user.id;
 
-// Show/hide admin-only UI
-if (user.role !== 'admin') {
-  const createProjBtn = document.getElementById('create-project-btn');
-  if (createProjBtn) createProjBtn.classList.add('hidden');
+// ── Role-based UI initialisation ─────────────────────────────
+function applyRoleUI() {
+  const sidebar = document.getElementById('sidebar');
+  const badge   = document.getElementById('role-mode-badge');
+
+  if (user.role === 'admin') {
+    sidebar.classList.add('admin-mode');
+    if (badge) {
+      badge.textContent  = '⚡ Admin View';
+      badge.className    = 'role-mode-badge is-admin';
+    }
+    // Show admin-only nav buttons
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+  } else {
+    sidebar.classList.add('member-mode');
+    if (badge) {
+      badge.textContent  = '👤 Member View';
+      badge.className    = 'role-mode-badge is-member';
+    }
+    // Show member overview, hide admin panel
+    const adminPanel = document.getElementById('admin-overview-panel');
+    const memberPanel = document.getElementById('member-overview-panel');
+    if (adminPanel) adminPanel.classList.add('hidden');
+    if (memberPanel) memberPanel.classList.remove('hidden');
+    
+    // Explicitly hide any other admin-only UI elements
+    const createProjBtn = document.getElementById('create-project-btn');
+    if (createProjBtn) createProjBtn.classList.add('hidden');
+  }
 }
+
+// Initialise Role UI
+applyRoleUI();
 
 // ── Section navigation ────────────────────────────────────────
 function showSection(name) {
@@ -26,11 +54,13 @@ function showSection(name) {
   document.getElementById(`section-${name}`).classList.add('active');
   document.getElementById(`nav-${name}`).classList.add('active');
 
-  if (name === 'overview') loadOverview();
-  if (name === 'projects') loadProjects();
-  if (name === 'tasks')    { populateProjectFilters(); loadTasks(); }
-  if (name === 'team')     populateTeamProjectDropdown();
-  if (name === 'activity') loadActivity();
+  if (name === 'overview')   loadOverview();
+  if (name === 'projects')   loadProjects();
+  if (name === 'tasks')      { populateProjectFilters(); loadTasks(); }
+  if (name === 'team')       populateTeamProjectDropdown();
+  if (name === 'activity')   loadActivity();
+  if (name === 'users')      loadUsers();
+  if (name === 'analytics')  loadAnalytics();
 }
 
 // ── Logout ────────────────────────────────────────────────────
@@ -82,28 +112,75 @@ function showConfirm(title, message, onConfirm) {
 async function loadOverview() {
   try {
     const [projects, tasks] = await Promise.all([getProjects(), getTasks()]);
+    const now    = new Date();
+    const done   = tasks.filter(t => t.status === 'done');
+    const overdue= tasks.filter(t => t.due_date && new Date(t.due_date) < now && t.status !== 'done');
 
-    const now  = new Date();
-    const done = tasks.filter(t => t.status === 'done');
-    const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < now && t.status !== 'done');
+    if (user.role === 'admin') {
+      // ── Admin stats ──
+      document.getElementById('stat-total-label').textContent = 'Total Tasks (All Projects)';
+      document.getElementById('stat-total-val').textContent    = tasks.length;
+      document.getElementById('stat-done-val').textContent     = done.length;
+      document.getElementById('stat-overdue-val').textContent  = overdue.length;
+      document.getElementById('stat-projects-val').textContent = projects.length;
 
-    document.getElementById('stat-total-val').textContent    = tasks.length;
-    document.getElementById('stat-done-val').textContent     = done.length;
-    document.getElementById('stat-overdue-val').textContent  = overdue.length;
-    document.getElementById('stat-projects-val').textContent = projects.length;
+      // Recent 5 tasks across all projects
+      const list = document.getElementById('recent-tasks-list');
+      list.innerHTML = tasks.length === 0
+        ? '<p class="empty-state">No tasks yet.</p>'
+        : tasks.slice(0, 5).map(t => `
+          <div class="task-list-item">
+            <span style="font-size:0.88rem;font-weight:600">${esc(t.title)}</span>
+            <span class="task-status-pill pill-${statusClass(t.status)}">${t.status}</span>
+          </div>
+        `).join('');
+    } else {
+      // ── Member stats — scoped to themselves ──
+      const myTasks    = tasks.filter(t => t.assigned_to === user.id);
+      const myPending  = myTasks.filter(t => t.status !== 'done');
+      const myDone     = myTasks.filter(t => t.status === 'done');
+      const myOverdue  = myTasks.filter(t => t.due_date && new Date(t.due_date) < now && t.status !== 'done');
 
-    // Recent tasks (last 5)
-    const list = document.getElementById('recent-tasks-list');
-    if (tasks.length === 0) {
-      list.innerHTML = '<p class="empty-state">No tasks yet. Create one in the Tasks tab.</p>';
-      return;
+      document.getElementById('stat-total-label').textContent  = 'My Tasks';
+      document.getElementById('stat-total-val').textContent     = myTasks.length;
+      document.getElementById('stat-done-val').textContent      = myDone.length;
+      document.getElementById('stat-overdue-val').textContent   = myOverdue.length;
+      document.getElementById('stat-projects-val').textContent  = projects.length;
+
+      // Pending list
+      const pendingList = document.getElementById('my-pending-list');
+      pendingList.innerHTML = myPending.length === 0
+        ? '<p class="empty-state">🎉 No pending tasks! You\'re all caught up.</p>'
+        : myPending.map(t => `
+          <div class="task-list-item">
+            <span style="font-size:0.88rem;font-weight:600">${esc(t.title)}</span>
+            <span class="task-status-pill pill-${statusClass(t.status)}">${t.status}</span>
+          </div>
+        `).join('');
+
+      // Upcoming deadlines (next 7 days)
+      const sevenDays = new Date(now.getTime() + 7 * 86400000);
+      const upcoming  = myTasks
+        .filter(t => t.due_date && new Date(t.due_date) >= now && new Date(t.due_date) <= sevenDays)
+        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+      const dlList = document.getElementById('my-deadlines-list');
+      dlList.innerHTML = upcoming.length === 0
+        ? '<p class="empty-state">No upcoming deadlines in the next 7 days.</p>'
+        : upcoming.map(t => `
+          <div class="task-list-item">
+            <span style="font-size:0.88rem;font-weight:600">${esc(t.title)}</span>
+            <span style="font-size:0.78rem;color:var(--warning)">⏰ ${fmtDate(t.due_date)}</span>
+          </div>
+        `).join('');
+
+      // Productivity bar — tasks completed this week
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
+      const completedThisWeek = myDone.length; // simplified: total done tasks
+      const pct = myTasks.length > 0 ? Math.min(100, Math.round(myDone.length / myTasks.length * 100)) : 0;
+      document.getElementById('productivity-bar').style.width = pct + '%';
+      document.getElementById('productivity-label').textContent =
+        `${myDone.length} of ${myTasks.length} tasks completed (${pct}%)`;
     }
-    list.innerHTML = tasks.slice(0, 5).map(t => `
-      <div class="task-list-item">
-        <span style="font-size:0.88rem;font-weight:600">${esc(t.title)}</span>
-        <span class="task-status-pill pill-${statusClass(t.status)}">${t.status}</span>
-      </div>
-    `).join('');
   } catch (err) {
     console.error(err);
   }
@@ -518,6 +595,112 @@ function statusClass(status) {
   if (status === 'in-progress') return 'progress';
   if (status === 'done')        return 'done';
   return 'todo';
+}
+
+// ══════════════════════════════════════════════════════════════
+// USER MANAGEMENT (Admin Only)
+// ══════════════════════════════════════════════════════════════
+async function loadUsers() {
+  const wrapper = document.getElementById('users-table-wrapper');
+  wrapper.innerHTML = '<p class="empty-state">Loading…</p>';
+  try {
+    const users = await getUserStats();
+    if (users.length === 0) { wrapper.innerHTML = '<p class="empty-state">No users yet.</p>'; return; }
+    const maxTasks = Math.max(...users.map(u => parseInt(u.open_tasks) || 0), 1);
+    wrapper.innerHTML = `
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Open Tasks</th>
+            <th>Done</th>
+            <th>Global Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => {
+            const open    = parseInt(u.open_tasks) || 0;
+            const done    = parseInt(u.done_tasks)  || 0;
+            const pct     = Math.round(open / maxTasks * 100);
+            const isDanger= pct > 70;
+            const isSelf  = u.id === user.id;
+            return `
+              <tr>
+                <td><strong>${esc(u.name)}</strong>${isSelf ? ' <span style="font-size:0.72rem;color:var(--text-muted)">(you)</span>' : ''}</td>
+                <td style="color:var(--text-muted)">${esc(u.email)}</td>
+                <td>
+                  <div class="workload-mini">
+                    <div class="workload-track"><div class="workload-fill${isDanger ? ' danger' : ''}" style="width:${pct}%"></div></div>
+                    <span class="workload-count">${open} open</span>
+                  </div>
+                </td>
+                <td style="color:var(--success);font-weight:600">${done}</td>
+                <td>
+                  ${isSelf
+                    ? `<span class="member-role-badge role-${u.role}">${u.role}</span>`
+                    : `<select class="role-select-inline" onchange="handleRoleChange('${u.id}', this.value)">
+                        <option value="member" ${u.role==='member'?'selected':''}>Member</option>
+                        <option value="admin"  ${u.role==='admin' ?'selected':''}>Admin</option>
+                      </select>`
+                  }
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch (err) {
+    wrapper.innerHTML = `<p class="empty-state" style="color:var(--danger)">${err.message}</p>`;
+  }
+}
+
+async function handleRoleChange(userId, role) {
+  try {
+    await changeUserRole(userId, role);
+    showToast(`Role changed to ${role}`, 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+    loadUsers(); // revert UI
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS (Admin Only)
+// ══════════════════════════════════════════════════════════════
+async function loadAnalytics() {
+  const wrapper = document.getElementById('analytics-chart-wrapper');
+  wrapper.innerHTML = '<p class="empty-state">Loading…</p>';
+  try {
+    const users = await getUserStats();
+    // Filter only users with at least 1 task, sorted by open tasks desc
+    const sorted = users.filter(u => parseInt(u.total_tasks) > 0)
+                        .sort((a, b) => parseInt(b.open_tasks) - parseInt(a.open_tasks));
+    if (sorted.length === 0) {
+      wrapper.innerHTML = '<p class="empty-state">No task assignments yet. Assign tasks to team members to see analytics.</p>';
+      return;
+    }
+    const maxOpen = Math.max(...sorted.map(u => parseInt(u.open_tasks) || 0), 1);
+    wrapper.innerHTML = sorted.map(u => {
+      const open  = parseInt(u.open_tasks)  || 0;
+      const done  = parseInt(u.done_tasks)  || 0;
+      const total = parseInt(u.total_tasks) || 0;
+      const pct   = Math.round(open / maxOpen * 100);
+      const isDanger = pct > 70;
+      return `
+        <div class="analytics-row">
+          <div class="analytics-name">
+            <div>${esc(u.name)}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${done}/${total} done</div>
+          </div>
+          <div class="analytics-track">
+            <div class="analytics-fill${isDanger ? ' danger' : ''}" style="width:${pct}%"></div>
+          </div>
+          <div class="analytics-count">${open} open</div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    wrapper.innerHTML = `<p class="empty-state" style="color:var(--danger)">${err.message}</p>`;
+  }
 }
 
 // ── Initial load ──────────────────────────────────────────────

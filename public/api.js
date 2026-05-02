@@ -138,5 +138,14 @@ async function getTaskComments(taskId) {
 }
 
 async function addTaskComment(taskId, comment) {
-  return apiFetch(`/tasks/${taskId}/comments`, { method: 'POST', body: JSON.stringify({ comment }) });
+  return apiFetch(`/tasks/${taskId}/comments`, { method: 'POST', body: { comment } });
+}
+
+// ── Admin: User Management ─────────────────────────────────────
+async function getUserStats() {
+  return apiFetch('/users/stats');
+}
+
+async function changeUserRole(userId, role) {
+  return apiFetch(`/users/${userId}/role`, { method: 'PATCH', body: { role } });
 }
