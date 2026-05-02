@@ -148,7 +148,7 @@ All protected routes require the `Authorization: Bearer <token>` header.
 
 ---
 
-## 🚂 Deployment
+## Deployment
 TaskFlow is configured for one-click deployment to **Railway**.
 
 1. Push your repository to **GitHub**.
