@@ -1,0 +1,396 @@
+# 🚀 FULL-STACK TEAM TASK MANAGER — MASTER PROMPT (CLAUDE EXECUTION VERSION)
+
+## 🎯 Objective
+
+Build a working full-stack application where users can:
+
+* Signup/Login (JWT-based authentication)
+* Create and manage projects (Admin only)
+* Manage teams within projects
+* Create, assign, and update tasks
+* Track task status and overdue tasks
+* View a simple dashboard
+
+---
+
+# ⚙️ FINAL TECH STACK (LOCK THIS — DO NOT CHANGE)
+
+* Backend: Node.js + Express
+* Database: Supabase PostgreSQL (DB ONLY, no Supabase Auth)
+* Frontend: HTML + Tailwind CSS + Vanilla JS
+* Auth: Manual JWT (bcrypt + jsonwebtoken)
+* Deployment: Railway
+
+---
+
+# ❗ CORE RULES
+
+* Do NOT use Supabase Auth
+* Do NOT use ORM (Prisma/Sequelize)
+* Use raw SQL via `pg`
+* Keep UI minimal (functionality > design)
+* Execute in PHASES (do not jump ahead)
+* Ensure all validations are implemented (not optional)
+
+---
+
+# 🧩 PHASE A — DATABASE (STRICT REQUIREMENTS)
+
+## Task:
+
+Write SQL queries for PostgreSQL (Supabase) to create:
+
+---
+
+### Users
+
+* id (uuid primary key, default gen_random_uuid())
+* name (text, required, min length 2)
+* email (unique, required, valid email format)
+* password (text, required, min length 6)
+* role (text: 'admin' or 'member')
+* created_at (timestamp default current time)
+
+---
+
+### Projects
+
+* id (uuid primary key)
+* name (text, required, min length 3)
+* description (text)
+* created_by (uuid → users.id)
+* created_at (timestamp)
+
+---
+
+### ProjectMembers (TEAM MANAGEMENT — REQUIRED)
+
+* id (uuid primary key)
+* user_id (uuid → users.id)
+* project_id (uuid → projects.id)
+* role (text: 'admin' or 'member')
+* added_at (timestamp)
+
+Constraints:
+
+* A user cannot be added twice to the same project (UNIQUE constraint)
+* Cascade delete when project or user is deleted
+
+---
+
+### Tasks
+
+* id (uuid primary key)
+* title (text, required, min length 3)
+* description (text)
+* status (text: 'todo', 'in-progress', 'done', default 'todo')
+* assigned_to (uuid → users.id)
+* project_id (uuid → projects.id)
+* due_date (timestamp)
+* created_at (timestamp)
+
+---
+
+## Requirements:
+
+* Add all foreign key constraints
+* Add CHECK constraints for validation
+* Add UNIQUE constraints where required
+* Add indexes for performance (project_id, assigned_to)
+
+---
+
+## Validation (MANDATORY):
+
+* Reject invalid emails (regex)
+* Enforce password length
+* Enforce allowed role values
+* Enforce allowed status values
+* Prevent duplicate project membership
+
+---
+
+## Verification:
+
+* Insert test users
+* Create project
+* Add member to project
+* Create task
+
+👉 DO NOT MOVE FORWARD until DB works perfectly
+
+---
+
+# 🧩 PHASE B — BACKEND (NODE + EXPRESS)
+
+## Setup:
+
+* Express server
+* PostgreSQL connection using `pg`
+* Environment variables:
+
+  * DATABASE_URL
+  * JWT_SECRET
+* Enable SSL for Supabase connection
+
+---
+
+## 🔐 Authentication:
+
+Implement:
+
+* POST /auth/signup
+* POST /auth/login
+
+Requirements:
+
+* Hash password using bcrypt
+* Generate JWT token
+* Validate input before insertion
+* Prevent duplicate email registration
+
+---
+
+## 🔒 Middleware:
+
+### authenticateUser
+
+* Verifies JWT
+* Attaches user info (id, role)
+
+### authorizeRoles(role)
+
+* Restricts access based on role
+
+---
+
+## 📦 APIs:
+
+### Projects
+
+* POST /projects (admin only)
+* GET /projects (only projects where user is a member)
+* DELETE /projects/:id (admin only)
+
+---
+
+### Project Members (TEAM MANAGEMENT)
+
+* POST /projects/:id/members (admin only)
+* GET /projects/:id/members
+
+---
+
+### Tasks
+
+* POST /tasks
+* GET /tasks (only tasks from user's projects)
+* PATCH /tasks/:id
+* DELETE /tasks/:id
+
+---
+
+## ⚠️ Rules:
+
+* Members can only update/delete tasks assigned to them
+* Users can only access projects they belong to
+* Tasks must belong to a valid project
+* Assigned user must be part of the same project
+
+---
+
+## ✅ Validation:
+
+Test using Postman:
+
+* Signup/Login works
+* Token authentication works
+* Role restrictions enforced
+* Project membership enforced
+* Task assignment rules enforced
+
+👉 Backend must be stable before frontend
+
+---
+
+# 🧩 PHASE C — FRONTEND (VANILLA JS)
+
+## Files:
+
+* index.html (Login + Signup)
+* dashboard.html
+* api.js
+* script.js
+
+---
+
+## Features:
+
+### Authentication:
+
+* Login/Signup forms
+* Store JWT in localStorage
+* Redirect to dashboard
+
+---
+
+### Dashboard:
+
+* Fetch user projects
+* Fetch tasks for selected project
+* Create task
+* Update task status
+
+---
+
+### Task Display:
+
+Group tasks into:
+
+* Todo
+* In Progress
+* Done
+
+---
+
+### Team Management UI (MINIMAL):
+
+* Show project members
+* Add member to project (simple input/dropdown)
+
+---
+
+## API Helper (api.js):
+
+Functions:
+
+* login()
+* signup()
+* getProjects()
+* getTasks()
+* createTask()
+* updateTask()
+* deleteTask()
+* addProjectMember()
+
+Attach JWT automatically in headers
+
+---
+
+## Dashboard Logic:
+
+* Total tasks
+* Completed tasks
+* Overdue tasks (due_date < current date)
+
+---
+
+## Validation:
+
+* UI should not break on empty responses
+* Handle API errors gracefully
+
+---
+
+# 🚀 PHASE D — DEPLOYMENT (RAILWAY)
+
+## Backend:
+
+* Deploy Node.js app
+* Add environment variables:
+
+  * DATABASE_URL
+  * JWT_SECRET
+
+---
+
+## Frontend:
+
+* Serve using Express static folder
+
+```js
+app.use(express.static("public"))
+```
+
+---
+
+## Critical Fixes:
+
+* Enable CORS
+* Use correct backend URL in frontend
+* Ensure SSL config for PostgreSQL
+
+---
+
+## Validation:
+
+* Live URL works
+* Login works
+* API calls succeed from frontend
+
+---
+
+# 📦 PHASE E — README
+
+Include:
+
+* Project overview
+* Features
+* Tech stack
+* API endpoints
+* Setup instructions
+* Live URL
+
+Mention:
+
+* Role-based access
+* Team/project relationship
+* Validation rules
+
+---
+
+# 🎥 PHASE F — DEMO VIDEO (2–5 MIN)
+
+## Script:
+
+1. Signup/Login
+2. Admin creates project
+3. Add member to project
+4. Create and assign task
+5. Update task status
+6. Show dashboard (counts + overdue)
+
+---
+
+# 🧨 FINAL EXECUTION RULES
+
+* Complete each phase before moving forward
+* Do NOT skip validation
+* Do NOT overdesign UI
+* Do NOT change stack
+* Deploy early
+
+---
+
+# ✅ END GOAL
+
+You must deliver:
+
+* Working live app (Railway)
+* GitHub repo
+* README
+* Demo video
+
+---
+
+# 🔥 MINDSET
+
+This is not about perfection.
+
+This is about:
+
+* correctness
+* completeness
+* working deployment
+
+Ship a working system.

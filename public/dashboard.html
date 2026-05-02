@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — TaskFlow</title>
+  <meta name="description" content="TaskFlow dashboard: manage your projects, teams and tasks." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dashboard-page">
+
+  <!-- ══ SIDEBAR ══════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">TaskFlow</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" id="nav-overview" onclick="showSection('overview')">
+        <span class="nav-icon">🏠</span> Overview
+      </button>
+      <button class="nav-btn" id="nav-projects" onclick="showSection('projects')">
+        <span class="nav-icon">📁</span> Projects
+      </button>
+      <button class="nav-btn" id="nav-tasks" onclick="showSection('tasks')">
+        <span class="nav-icon">✅</span> Tasks
+      </button>
+      <button class="nav-btn" id="nav-team" onclick="showSection('team')">
+        <span class="nav-icon">👥</span> Team
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip" id="user-chip">
+        <span class="user-avatar" id="user-avatar">?</span>
+        <div class="user-info">
+          <span class="user-name" id="sidebar-username">Loading…</span>
+          <span class="user-role-badge" id="sidebar-role">—</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN CONTENT ══════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- ── OVERVIEW SECTION ── -->
+    <section class="section active" id="section-overview">
+      <h1 class="section-title">Overview</h1>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card" id="stat-total">
+          <span class="stat-icon">📋</span>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-total-val">—</span>
+            <span class="stat-label">Total Tasks</span>
+          </div>
+        </div>
+        <div class="stat-card stat-done" id="stat-done">
+          <span class="stat-icon">✅</span>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-done-val">—</span>
+            <span class="stat-label">Completed</span>
+          </div>
+        </div>
+        <div class="stat-card stat-overdue" id="stat-overdue">
+          <span class="stat-icon">⚠️</span>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-overdue-val">—</span>
+            <span class="stat-label">Overdue</span>
+          </div>
+        </div>
+        <div class="stat-card stat-projects" id="stat-projects">
+          <span class="stat-icon">📁</span>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-projects-val">—</span>
+            <span class="stat-label">Projects</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="subsection-title">Recent Tasks</h2>
+      <div id="recent-tasks-list" class="task-list-simple">
+        <p class="empty-state">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ── PROJECTS SECTION ── -->
+    <section class="section" id="section-projects">
+      <div class="section-header">
+        <h1 class="section-title">Projects</h1>
+        <button class="btn btn-primary" id="create-project-btn" onclick="openModal('modal-create-project')">
+          + New Project
+        </button>
+      </div>
+
+      <div class="error-banner hidden" id="projects-error"></div>
+      <div class="projects-grid" id="projects-grid">
+        <p class="empty-state">Loading…</p>
+      </div>
+    </section>
+
+    <!-- ── TASKS SECTION ── -->
+    <section class="section" id="section-tasks">
+      <div class="section-header">
+        <h1 class="section-title">Tasks</h1>
+        <div class="tasks-controls">
+          <select id="task-project-filter" onchange="loadTasks()">
+            <option value="">All Projects</option>
+          </select>
+          <button class="btn btn-primary" onclick="openModal('modal-create-task')">+ New Task</button>
+        </div>
+      </div>
+
+      <div class="error-banner hidden" id="tasks-error"></div>
+
+      <!-- Kanban board -->
+      <div class="kanban-board">
+        <div class="kanban-column">
+          <div class="column-header column-todo">📌 Todo <span class="count-badge" id="count-todo">0</span></div>
+          <div class="column-body" id="col-todo"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="column-header column-progress">🔄 In Progress <span class="count-badge" id="count-progress">0</span></div>
+          <div class="column-body" id="col-progress"></div>
+        </div>
+        <div class="kanban-column">
+          <div class="column-header column-done">✅ Done <span class="count-badge" id="count-done">0</span></div>
+          <div class="column-body" id="col-done"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TEAM SECTION ── -->
+    <section class="section" id="section-team">
+      <div class="section-header">
+        <h1 class="section-title">Team</h1>
+        <select id="team-project-filter" onchange="loadMembers()">
+          <option value="">Select a Project</option>
+        </select>
+      </div>
+
+      <div class="error-banner hidden" id="team-error"></div>
+
+      <div class="team-panel" id="team-panel">
+        <p class="empty-state">Select a project to view team members.</p>
+      </div>
+
+      <!-- Add member panel (admin only) -->
+      <div class="add-member-panel hidden" id="add-member-panel">
+        <h3>Add Member</h3>
+        <div class="add-member-form">
+          <input type="text" id="member-user-id" placeholder="Paste user UUID…" />
+          <select id="member-role">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn btn-primary" onclick="addMember()">Add</button>
+        </div>
+        <p class="hint" style="margin-top:8px">Share your user ID with others: <code id="my-user-id" style="font-size:12px"></code></p>
+      </div>
+    </section>
+
+  </div><!-- /main-content -->
+
+  <!-- ══ MODALS ════════════════════════════════════════════════ -->
+
+  <!-- Create Project Modal -->
+  <div class="modal-overlay hidden" id="modal-create-project" onclick="closeModalOnOverlay(event, 'modal-create-project')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>New Project</h2>
+        <button class="modal-close" onclick="closeModal('modal-create-project')">✕</button>
+      </div>
+      <div class="error-banner hidden" id="create-project-error"></div>
+      <form id="create-project-form" novalidate>
+        <div class="field-group">
+          <label for="proj-name">Project Name <span class="hint">(min 3 chars)</span></label>
+          <input type="text" id="proj-name" placeholder="My Awesome Project" required />
+        </div>
+        <div class="field-group">
+          <label for="proj-desc">Description</label>
+          <textarea id="proj-desc" placeholder="What is this project about?" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modal-create-project')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Task Modal -->
+  <div class="modal-overlay hidden" id="modal-create-task" onclick="closeModalOnOverlay(event, 'modal-create-task')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>New Task</h2>
+        <button class="modal-close" onclick="closeModal('modal-create-task')">✕</button>
+      </div>
+      <div class="error-banner hidden" id="create-task-error"></div>
+      <form id="create-task-form" novalidate>
+        <div class="field-group">
+          <label for="task-title">Title <span class="hint">(min 3 chars)</span></label>
+          <input type="text" id="task-title" placeholder="Task title…" required />
+        </div>
+        <div class="field-group">
+          <label for="task-desc">Description</label>
+          <textarea id="task-desc" placeholder="Task details…" rows="2"></textarea>
+        </div>
+        <div class="field-group">
+          <label for="task-project">Project</label>
+          <select id="task-project" required></select>
+        </div>
+        <div class="field-group">
+          <label for="task-assigned">Assign To (User ID)</label>
+          <input type="text" id="task-assigned" placeholder="UUID of a project member…" />
+        </div>
+        <div class="field-group">
+          <label for="task-due">Due Date</label>
+          <input type="datetime-local" id="task-due" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modal-create-task')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Task Modal -->
+  <div class="modal-overlay hidden" id="modal-edit-task" onclick="closeModalOnOverlay(event, 'modal-edit-task')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Task</h2>
+        <button class="modal-close" onclick="closeModal('modal-edit-task')">✕</button>
+      </div>
+      <div class="error-banner hidden" id="edit-task-error"></div>
+      <form id="edit-task-form" novalidate>
+        <input type="hidden" id="edit-task-id" />
+        <div class="field-group">
+          <label for="edit-task-title">Title</label>
+          <input type="text" id="edit-task-title" required />
+        </div>
+        <div class="field-group">
+          <label for="edit-task-desc">Description</label>
+          <textarea id="edit-task-desc" rows="2"></textarea>
+        </div>
+        <div class="field-group">
+          <label for="edit-task-status">Status</label>
+          <select id="edit-task-status">
+            <option value="todo">Todo</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="edit-task-due">Due Date</label>
+          <input type="datetime-local" id="edit-task-due" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="delete-task-btn">Delete</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modal-edit-task')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
