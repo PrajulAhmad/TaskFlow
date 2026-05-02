@@ -105,7 +105,7 @@ router.post('/:id/members', authenticateUser, authorizeRoles('admin'), async (re
     }
 
     // Verify target user exists
-    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
+    const userCheck = await pool.query('SELECT id, name FROM users WHERE id = $1', [user_id]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -117,6 +117,9 @@ router.post('/:id/members', authenticateUser, authorizeRoles('admin'), async (re
        RETURNING *`,
       [user_id, project_id, memberRole]
     );
+
+    const memberName = userCheck.rows[0].name;
+    await pool.query('INSERT INTO activity_logs (project_id, user_id, action, details) VALUES ($1, $2, $3, $4)', [project_id, req.user.id, 'Added Member', `Added ${memberName} as ${memberRole}`]);
 
     return res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -152,6 +155,41 @@ router.get('/:id/members', authenticateUser, async (req, res) => {
   } catch (err) {
     console.error('Get members error:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /projects/activity/all - Get user's projects activity
+// ─────────────────────────────────────────────────────────────
+router.get('/activity/all', authenticateUser, async (req, res) => {
+  try {
+    let query;
+    let params = [];
+    if (req.user.role === 'admin') {
+      query = `
+        SELECT a.*, p.name as project_name, u.name as user_name
+        FROM activity_logs a
+        LEFT JOIN projects p ON a.project_id = p.id
+        LEFT JOIN users u ON a.user_id = u.id
+        ORDER BY a.created_at DESC LIMIT 50
+      `;
+    } else {
+      query = `
+        SELECT a.*, p.name as project_name, u.name as user_name
+        FROM activity_logs a
+        JOIN project_members pm ON a.project_id = pm.project_id
+        LEFT JOIN projects p ON a.project_id = p.id
+        LEFT JOIN users u ON a.user_id = u.id
+        WHERE pm.user_id = $1
+        ORDER BY a.created_at DESC LIMIT 50
+      `;
+      params.push(req.user.id);
+    }
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Activity error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

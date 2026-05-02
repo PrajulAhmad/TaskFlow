@@ -63,9 +63,10 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
   setLoading('login-btn', true);
   try {
-    const { user, token } = await login(email, password);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    const data = await login(email, password);
+    localStorage.setItem('token', data.token);
+    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('user', JSON.stringify(data.user));
     window.location.href = '/dashboard.html';
   } catch (err) {
     showError(err.message);

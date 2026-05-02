@@ -62,43 +62,68 @@ router.post('/signup', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// POST /auth/login
+// POST /auth/login - Authenticate user & issue tokens
 // ─────────────────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'email and password are required' });
-  }
-  if (!EMAIL_REGEX.test(email)) {
-    return res.status(400).json({ error: 'Invalid email format' });
-  }
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
 
     const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // Access token (short-lived, 15 minutes)
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    
+    // Refresh token (long-lived, 7 days)
+    const crypto = require('crypto');
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    
+    await pool.query('INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)', [refreshToken, user.id, expiresAt]);
 
-    return res.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    res.json({
       token,
+      refreshToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
     });
   } catch (err) {
     console.error('Login error:', err.message);
-    return res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /auth/refresh - Get a new access token
+// ─────────────────────────────────────────────────────────────
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(401).json({ error: 'Refresh token required' });
+  
+  try {
+    const result = await pool.query('SELECT user_id, expires_at FROM refresh_tokens WHERE token = $1', [refreshToken]);
+    if (result.rows.length === 0) return res.status(403).json({ error: 'Invalid refresh token' });
+    
+    const tokenData = result.rows[0];
+    if (new Date() > new Date(tokenData.expires_at)) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+      return res.status(403).json({ error: 'Refresh token expired' });
+    }
+    
+    const userRes = await pool.query('SELECT id, role FROM users WHERE id = $1', [tokenData.user_id]);
+    if (userRes.rows.length === 0) return res.status(403).json({ error: 'User not found' });
+    
+    const user = userRes.rows[0];
+    const newAccess = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    
+    res.json({ token: newAccess });
+  } catch (err) {
+    console.error('Refresh error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

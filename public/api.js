@@ -16,17 +16,51 @@ async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  let res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: options.body && typeof options.body === 'object' && !(options.body instanceof FormData) 
+      ? JSON.stringify(options.body) 
+      : options.body,
   });
 
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}`);
+  if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh' && !options._retry) {
+    options._retry = true;
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken })
+        });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          localStorage.setItem('token', data.token);
+          headers['Authorization'] = `Bearer ${data.token}`;
+          res = await fetch(`${BASE_URL}${path}`, {
+            ...options,
+            headers,
+            body: options.body && typeof options.body === 'object' && !(options.body instanceof FormData) 
+              ? JSON.stringify(options.body) 
+              : options.body,
+          });
+        } else {
+          localStorage.clear();
+          window.location.href = '/index.html';
+        }
+      } catch (err) {
+        localStorage.clear();
+        window.location.href = '/index.html';
+      }
+    } else {
+      localStorage.clear();
+      window.location.href = '/index.html';
+    }
   }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
@@ -88,4 +122,21 @@ async function deleteTask(id) {
 // ── Users ─────────────────────────────────────────────────────
 async function getAllUsers() {
   return apiFetch('/users');
+}
+
+async function updateProfile(name, password) {
+  return apiFetch('/users/me', { method: 'PUT', body: JSON.stringify({ name, password }) });
+}
+
+// ── Activity & Comments ───────────────────────────────────────
+async function getGlobalActivity() {
+  return apiFetch('/projects/activity/all');
+}
+
+async function getTaskComments(taskId) {
+  return apiFetch(`/tasks/${taskId}/comments`);
+}
+
+async function addTaskComment(taskId, comment) {
+  return apiFetch(`/tasks/${taskId}/comments`, { method: 'POST', body: JSON.stringify({ comment }) });
 }

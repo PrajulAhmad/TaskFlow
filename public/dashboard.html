@@ -31,10 +31,13 @@
       <button class="nav-btn" id="nav-team" onclick="showSection('team')">
         <span class="nav-icon">👥</span> Team
       </button>
+      <button class="nav-btn" id="nav-activity" onclick="showSection('activity')">
+        <span class="nav-icon">⚡</span> Activity Logs
+      </button>
     </nav>
 
     <div class="sidebar-footer">
-      <div class="user-chip" id="user-chip">
+      <div class="user-chip" id="user-chip" style="cursor:pointer" onclick="openModal('modal-settings')">
         <span class="user-avatar" id="user-avatar">?</span>
         <div class="user-info">
           <span class="user-name" id="sidebar-username">Loading…</span>
@@ -166,6 +169,14 @@
       </div>
     </section>
 
+    <!-- ── ACTIVITY SECTION ── -->
+    <section class="section" id="section-activity">
+      <h1 class="section-title">Global Activity</h1>
+      <div id="activity-list" class="activity-list">
+        <p class="empty-state">Loading activities...</p>
+      </div>
+    </section>
+
   </div><!-- /main-content -->
 
   <!-- ══ MODALS ════════════════════════════════════════════════ -->
@@ -270,10 +281,60 @@
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
+      
+      <!-- Comments Section -->
+      <div class="comments-section">
+        <h3 style="font-size:1rem;margin-bottom:8px">Comments</h3>
+        <div class="comment-list" id="task-comments-list"></div>
+        <div class="comment-input-wrapper">
+          <input type="text" id="new-comment-input" placeholder="Type a comment..." />
+          <button class="btn btn-primary" onclick="addComment()">Post</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <script src="api.js"></script>
-  <script src="dashboard.js"></script>
+  <!-- Settings Modal -->
+  <div class="modal-overlay hidden" id="modal-settings" onclick="closeModalOnOverlay(event, 'modal-settings')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Profile Settings</h2>
+        <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+      </div>
+      <div class="error-banner hidden" id="settings-error"></div>
+      <form id="settings-form" novalidate>
+        <div class="field-group">
+          <label for="settings-name">Display Name</label>
+          <input type="text" id="settings-name" required />
+        </div>
+        <div class="field-group">
+          <label for="settings-password">New Password <span class="hint">(leave blank to keep current)</span></label>
+          <input type="password" id="settings-password" placeholder="Min 6 chars" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modal-settings')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay hidden" id="modal-confirm" style="z-index: 10000;" onclick="closeModalOnOverlay(event, 'modal-confirm')">
+    <div class="modal" style="max-width: 400px; text-align: center; padding-top: 32px;">
+      <h2 id="confirm-title" style="margin-bottom: 12px;">Confirm Action</h2>
+      <p id="confirm-message" style="color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Are you sure?</p>
+      <div class="modal-actions" style="justify-content: center;">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-yes-btn">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="api.js?v=4"></script>
+  <script src="dashboard.js?v=4"></script>
 </body>
 </html>

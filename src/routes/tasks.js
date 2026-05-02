@@ -208,4 +208,52 @@ router.delete('/:id', authenticateUser, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────
+// GET /tasks/:id/comments - Get comments for a task
+// ─────────────────────────────────────────────────────────────
+router.get('/:id/comments', authenticateUser, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT c.*, u.name as user_name 
+       FROM task_comments c 
+       JOIN users u ON c.user_id = u.id 
+       WHERE c.task_id = $1 
+       ORDER BY c.created_at ASC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get comments error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /tasks/:id/comments - Add a comment
+// ─────────────────────────────────────────────────────────────
+router.post('/:id/comments', authenticateUser, async (req, res) => {
+  const { id } = req.params;
+  const { comment } = req.body;
+  if (!comment) return res.status(400).json({ error: 'Comment is required' });
+  try {
+    const taskRes = await pool.query('SELECT project_id FROM tasks WHERE id = $1', [id]);
+    if (taskRes.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    const projectId = taskRes.rows[0].project_id;
+
+    const result = await pool.query(
+      'INSERT INTO task_comments (task_id, user_id, comment) VALUES ($1, $2, $3) RETURNING *',
+      [id, req.user.id, comment]
+    );
+    
+    // Log it
+    await pool.query('INSERT INTO activity_logs (project_id, user_id, action, details) VALUES ($1, $2, $3, $4)', [projectId, req.user.id, 'Commented on Task', comment]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Add comment error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

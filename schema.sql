@@ -85,18 +85,53 @@ INSERT INTO projects (name, description, created_by)
 SELECT 'Alpha Project', 'Our first project', id FROM users WHERE email = 'alice@example.com'
 ON CONFLICT DO NOTHING;
 
--- Add both users to the project
-INSERT INTO project_members (user_id, project_id, role)
-SELECT u.id, p.id, 'admin'
-FROM users u, projects p
-WHERE u.email = 'alice@example.com' AND p.name = 'Alpha Project'
+-- Insert members into projects (Alice -> Alpha, Bob -> Alpha, Charlie -> Beta)
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, (SELECT id FROM users WHERE email='alice@example.com'), 'admin'
+FROM projects WHERE name='Alpha Project'
 ON CONFLICT DO NOTHING;
 
-INSERT INTO project_members (user_id, project_id, role)
-SELECT u.id, p.id, 'member'
-FROM users u, projects p
-WHERE u.email = 'bob@example.com' AND p.name = 'Alpha Project'
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, (SELECT id FROM users WHERE email='bob@example.com'), 'member'
+FROM projects WHERE name='Alpha Project'
 ON CONFLICT DO NOTHING;
+
+INSERT INTO project_members (project_id, user_id, role)
+SELECT id, (SELECT id FROM users WHERE email='charlie@example.com'), 'admin'
+FROM projects WHERE name='Beta Project'
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
+-- Activity Logs
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(255) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- Task Comments
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS task_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- Refresh Tokens
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token VARCHAR(255) PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
 
 -- Create a task
 INSERT INTO tasks (title, description, status, assigned_to, project_id, due_date)
@@ -105,3 +140,36 @@ SELECT 'Setup project repository', 'Init GitHub repo and CI/CD', 'todo', u.id, p
 FROM users u, projects p
 WHERE u.email = 'bob@example.com' AND p.name = 'Alpha Project'
 ON CONFLICT DO NOTHING;
+
+
+-- ─────────────────────────────────────────────────────────────
+-- Activity Logs
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(255) NOT NULL,
+    details TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- Task Comments
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS task_comments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- Refresh Tokens
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    token VARCHAR(255) PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);

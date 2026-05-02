@@ -337,6 +337,46 @@ button { cursor: pointer; border: none; background: none; }
 .pill-progress { background: rgba(251,191,36,0.15);  color: var(--warning); }
 .pill-done     { background: rgba(34,211,165,0.15);  color: var(--success); }
 
+/* ══ ACTIVITY LOGS ═════════════════════════════════════════════ */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+.activity-item {
+  padding: 16px;
+  background: var(--surface-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+}
+.activity-action {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+.activity-details {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: rgba(0,0,0,0.2);
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+.activity-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
 /* ── Team section ────────────────────────────────────────────── */
 .team-panel { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
 .member-card {

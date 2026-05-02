@@ -30,6 +30,7 @@ function showSection(name) {
   if (name === 'projects') loadProjects();
   if (name === 'tasks')    { populateProjectFilters(); loadTasks(); }
   if (name === 'team')     populateTeamProjectDropdown();
+  if (name === 'activity') loadActivity();
 }
 
 // ── Logout ────────────────────────────────────────────────────
@@ -39,18 +40,41 @@ function logout() {
 }
 
 // ── Error helpers ─────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 function showErr(elId, msg) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.remove('hidden');
-  setTimeout(() => el.classList.add('hidden'), 5000);
+  showToast(msg, 'error');
 }
 
 // ── Modal helpers ─────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+
+function showConfirm(title, message, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  const yesBtn = document.getElementById('confirm-yes-btn');
+  const newYesBtn = yesBtn.cloneNode(true);
+  yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+  newYesBtn.addEventListener('click', () => {
+    closeModal('modal-confirm');
+    onConfirm();
+  });
+  openModal('modal-confirm');
+}
 
 // ══════════════════════════════════════════════════════════════
 // OVERVIEW
@@ -129,6 +153,7 @@ document.getElementById('create-project-form').addEventListener('submit', async 
     await createProject(name, desc);
     closeModal('modal-create-project');
     document.getElementById('create-project-form').reset();
+    showToast('Project created successfully!');
     loadProjects();
   } catch (err) {
     showErr('create-project-error', err.message);
@@ -136,13 +161,15 @@ document.getElementById('create-project-form').addEventListener('submit', async 
 });
 
 async function confirmDeleteProject(id, name) {
-  if (!confirm(`Delete project "${name}"? This will also delete all its tasks.`)) return;
-  try {
-    await deleteProject(id);
-    loadProjects();
-  } catch (err) {
-    showErr('projects-error', err.message);
-  }
+  showConfirm('Delete Project', `Delete project "${name}"? This will also delete all its tasks.`, async () => {
+    try {
+      await deleteProject(id);
+      loadProjects();
+      showToast('Project deleted', 'success');
+    } catch (err) {
+      showErr('projects-error', err.message);
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -244,6 +271,7 @@ document.getElementById('create-task-form').addEventListener('submit', async (e)
     });
     closeModal('modal-create-task');
     document.getElementById('create-task-form').reset();
+    showToast('Task created!');
     loadTasks();
   } catch (err) {
     showErr('create-task-error', err.message);
@@ -265,6 +293,7 @@ function openEditTask(task) {
     document.getElementById('edit-task-due').value = '';
   }
   openModal('modal-edit-task');
+  loadComments(task.id);
 }
 
 document.getElementById('edit-task-form').addEventListener('submit', async (e) => {
@@ -293,14 +322,16 @@ document.getElementById('edit-task-form').addEventListener('submit', async (e) =
 
 document.getElementById('delete-task-btn').addEventListener('click', async () => {
   const id = document.getElementById('edit-task-id').value;
-  if (!confirm('Delete this task?')) return;
-  try {
-    await deleteTask(id);
-    closeModal('modal-edit-task');
-    loadTasks();
-  } catch (err) {
-    showErr('edit-task-error', err.message);
-  }
+  showConfirm('Delete Task', 'Are you sure you want to permanently delete this task?', async () => {
+    try {
+      await deleteTask(id);
+      closeModal('modal-edit-task');
+      loadTasks();
+      showToast('Task deleted', 'success');
+    } catch (err) {
+      showErr('edit-task-error', err.message);
+    }
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -406,6 +437,70 @@ document.getElementById('task-project').addEventListener('change', async (e) => 
   } catch (err) { console.error(err); }
 });
 
+// ── Settings ──────────────────────────────────────────────────
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('settings-name').value.trim();
+  const pwd = document.getElementById('settings-password').value;
+  try {
+    await updateProfile(name, pwd);
+    user.name = name;
+    localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('sidebar-username').textContent = user.name;
+    document.getElementById('user-avatar').textContent = user.name[0].toUpperCase();
+    showToast('Profile updated successfully!');
+    closeModal('modal-settings');
+  } catch(err) { showErr('settings-error', err.message); }
+});
+
+// ── Activity ──────────────────────────────────────────────────
+async function loadActivity() {
+  const list = document.getElementById('activity-list');
+  list.innerHTML = '<p class="empty-state">Loading activities...</p>';
+  try {
+    const logs = await getGlobalActivity();
+    if(logs.length === 0) return list.innerHTML = '<p class="empty-state">No activity yet.</p>';
+    list.innerHTML = logs.map(l => `
+      <div class="activity-item">
+        <div class="activity-header">
+          <span><strong>${esc(l.user_name || 'System')}</strong> <span class="activity-action">${esc(l.action)}</span> in <strong>${esc(l.project_name || 'Unknown')}</strong></span>
+          <span class="activity-meta">${fmtDate(l.created_at)}</span>
+        </div>
+        ${l.details ? `<div class="activity-details">💬 ${esc(l.details)}</div>` : ''}
+      </div>
+    `).join('');
+  } catch(err) { list.innerHTML = `<p class="empty-state" style="color:var(--overdue-color)">Failed to load</p>`; }
+}
+
+// ── Comments ──────────────────────────────────────────────────
+async function loadComments(taskId) {
+  const list = document.getElementById('task-comments-list');
+  list.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary)">Loading...</p>';
+  try {
+    const comments = await getTaskComments(taskId);
+    if(comments.length === 0) { list.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary)">No comments yet.</p>'; return; }
+    list.innerHTML = comments.map(c => `
+      <div class="comment-item">
+        <div class="comment-header"><span>${esc(c.user_name)}</span> <span>${fmtDate(c.created_at)}</span></div>
+        <div class="comment-body">${esc(c.comment)}</div>
+      </div>
+    `).join('');
+  } catch(err) { list.innerHTML = '<p>Error loading comments</p>'; }
+}
+
+async function addComment() {
+  const input = document.getElementById('new-comment-input');
+  const text = input.value.trim();
+  const taskId = document.getElementById('edit-task-id').value;
+  if(!text || !taskId) return;
+  try {
+    await addTaskComment(taskId, text);
+    input.value = '';
+    showToast('Comment added');
+    loadComments(taskId);
+  } catch(err) { showErr('edit-task-error', err.message); }
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {
   if (!str) return '';
@@ -413,7 +508,10 @@ function esc(str) {
 }
 
 function fmtDate(d) {
-  return new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  const date = new Date(d);
+  const dateStr = date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  const timeStr = date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit' });
+  return `${dateStr} at ${timeStr}`;
 }
 
 function statusClass(status) {
