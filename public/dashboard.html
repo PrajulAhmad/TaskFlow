@@ -153,7 +153,9 @@
       <div class="add-member-panel hidden" id="add-member-panel">
         <h3>Add Member</h3>
         <div class="add-member-form">
-          <input type="text" id="member-user-id" placeholder="Paste user UUID…" />
+          <select id="member-user-id">
+            <option value="">Select a user...</option>
+          </select>
           <select id="member-role">
             <option value="member">Member</option>
             <option value="admin">Admin</option>
@@ -215,8 +217,10 @@
           <select id="task-project" required></select>
         </div>
         <div class="field-group">
-          <label for="task-assigned">Assign To (User ID)</label>
-          <input type="text" id="task-assigned" placeholder="UUID of a project member…" />
+          <label for="task-assigned">Assign To (Project Member)</label>
+          <select id="task-assigned">
+            <option value="">Unassigned</option>
+          </select>
         </div>
         <div class="field-group">
           <label for="task-due">Due Date</label>

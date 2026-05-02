@@ -172,6 +172,9 @@ async function populateProjectFilters() {
         opt.value = p.id; opt.textContent = p.name;
         taskProject.appendChild(opt);
       });
+      if (projects.length > 0) {
+        taskProject.dispatchEvent(new Event('change'));
+      }
     }
   } catch (err) { /* ignore */ }
 }
@@ -372,6 +375,37 @@ async function addMember() {
   }
 }
 
+// ── Dynamic Dropdowns ─────────────────────────────────────────
+async function populateAllUsers() {
+  if (user.role !== 'admin') return;
+  const sel = document.getElementById('member-user-id');
+  if (!sel) return;
+  try {
+    const users = await getAllUsers();
+    sel.innerHTML = '<option value="">Select a user...</option>';
+    users.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.id; opt.textContent = `${u.name} (${u.email})`;
+      sel.appendChild(opt);
+    });
+  } catch(err) { console.error(err); }
+}
+
+document.getElementById('task-project').addEventListener('change', async (e) => {
+  const projectId = e.target.value;
+  const sel = document.getElementById('task-assigned');
+  sel.innerHTML = '<option value="">Unassigned</option>';
+  if (!projectId) return;
+  try {
+    const members = await getMembers(projectId);
+    members.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id; opt.textContent = m.name;
+      sel.appendChild(opt);
+    });
+  } catch (err) { console.error(err); }
+});
+
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {
   if (!str) return '';
@@ -391,3 +425,4 @@ function statusClass(status) {
 // ── Initial load ──────────────────────────────────────────────
 loadOverview();
 populateProjectFilters();
+populateAllUsers();

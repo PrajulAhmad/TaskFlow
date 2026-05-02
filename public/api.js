@@ -84,3 +84,8 @@ async function updateTask(id, fields) {
 async function deleteTask(id) {
   return apiFetch(`/tasks/${id}`, { method: 'DELETE' });
 }
+
+// ── Users ─────────────────────────────────────────────────────
+async function getAllUsers() {
+  return apiFetch('/users');
+}

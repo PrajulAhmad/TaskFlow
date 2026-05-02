@@ -6,6 +6,7 @@ const path = require('path');
 const authRoutes     = require('./src/routes/auth');
 const projectRoutes  = require('./src/routes/projects');
 const taskRoutes     = require('./src/routes/tasks');
+const userRoutes     = require('./src/routes/users');
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/auth', authRoutes);
 app.use('/projects', projectRoutes);
 app.use('/tasks', taskRoutes);
+app.use('/users', userRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
